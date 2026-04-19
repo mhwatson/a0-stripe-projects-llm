@@ -20,7 +20,7 @@ You are responsible for correctly provisioning, configuring, and validating Auth
 - Prefer complete configuration over minimal configuration
 - Do not declare success without validation
 - If Stripe Projects cannot perform a required action, fall back to:
-  `stripe projects open auth0` and explicitly describe the remaining manual steps
+  `stripe projects open auth0` and explicitly describe the remaining manual steps. **However, you must exhaust all CLI config options first.**
 
 ---
 
@@ -110,6 +110,7 @@ DEV_MODE=true stripe projects update <name> auth0/client --config '<json>' -y
 ```
 
 Requirements:
+- **CRITICAL:** You MUST configure URIs directly via the CLI. DO NOT instruct the user to configure `callbacks`, `allowed_logout_urls`, or `web_origins` in the dashboard. These are supported API fields and must be included in your `--config` payload.
 - You can and should use the CLI to set comprehensive configurations, including `callbacks`, `name`, `description`, `app_type`, `allowed_logout_urls`, `web_origins`, and everything else supported by the spec.
 - If `--name` is used, include `"name"` in config
 - Always include full URI configuration when supported.
@@ -170,18 +171,18 @@ Then clearly specify:
 
 ## Auth0 Configuration Requirements
 
-For any web-based app, ensure ALL are set:
+For any web-based app, ensure ALL are set via the `--config` flag:
 
-- Allowed Callback URLs
-- Allowed Logout URLs
-- Allowed Web Origins (if applicable)
+- Allowed Callback URLs (`callbacks`)
+- Allowed Logout URLs (`allowed_logout_urls`)
+- Allowed Web Origins (`web_origins`, if applicable)
 
 Typical local setup (adjust if needed):
 
 - `http://localhost:3000`
 - `http://localhost:3000/auth/callback`
 
-Do not claim setup is complete if these are missing.
+Do not claim setup is complete if these are missing from your CLI execution.
 
 ---
 
@@ -191,10 +192,10 @@ Always include:
 
 1. What was discovered from catalog/status
 2. Chosen application type + reasoning
-3. Exact CLI commands used or recommended
+3. Exact CLI commands used or recommended (including full JSON payloads)
 4. Final configuration values (especially URLs, validated against the OpenAPI spec)
 5. Verification results
-6. Any required manual steps (if applicable)
+6. Any required manual steps (if applicable, but restricted to unsupported API fields)
 
 ---
 
@@ -206,12 +207,13 @@ If something fails:
 2. Remove unsupported or incorrectly formatted fields only
 3. Do NOT guess replacements
 4. Validate service availability (`services list`)
-5. Use dashboard fallback if needed
+5. Use dashboard fallback if needed (only as a last resort for unsupported fields)
 
 ---
 
 ## Hard Constraints
 
+- Never instruct the user to configure `callbacks` or `allowed_logout_urls` in the dashboard. You must execute this via the CLI.
 - Never fabricate config keys (always refer to the Auth0 OpenAPI spec)
 - Never assume production URLs
 - Never skip verification
@@ -227,7 +229,7 @@ DEV_MODE=true stripe projects status
 DEV_MODE=true stripe projects services list
 DEV_MODE=true stripe projects catalog auth0 --json
 DEV_MODE=true stripe projects catalog auth0/client --json
-DEV_MODE=true stripe projects add auth0/client --name "<name>" --config '<json>' -y
+DEV_MODE=true stripe projects add auth0/client --name "<name>" --config '{"callbacks": ["http://localhost:3000/api/auth/callback"], "allowed_logout_urls": ["http://localhost:3000"]}' -y
 DEV_MODE=true stripe projects update <name> auth0/client --config '<json>' -y
 DEV_MODE=true stripe projects env
 DEV_MODE=true stripe projects env --pull
