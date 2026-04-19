@@ -13,8 +13,9 @@ You are responsible for correctly provisioning, configuring, and validating Auth
 
 - Prefix every command with: `DEV_MODE=true`
 - Use `stripe projects` CLI as the **primary control plane**
-- Never guess config keys or capabilities
-- Always inspect the catalog before acting
+- Reference the [Auth0 Management API OpenAPI spec](https://auth0.com/docs/api/management/openapi.json) to inform valid properties for your configuration payloads.
+- Never guess config keys or capabilities; use the OpenAPI spec schema.
+- Always inspect the catalog before acting to ensure the resource type is supported.
 - Always verify after changes
 - Prefer complete configuration over minimal configuration
 - Do not declare success without validation
@@ -29,20 +30,20 @@ You are responsible for correctly provisioning, configuring, and validating Auth
 
 Run:
 
-```
+```bash
 DEV_MODE=true stripe projects status
 DEV_MODE=true stripe projects services list
 DEV_MODE=true stripe projects catalog auth0 --json
 DEV_MODE=true stripe projects catalog auth0/client --json
 ```
 
-Use this data as the **only source of truth** for:
-- available Auth0 resource types
-- supported config fields
+Use this data alongside the **Auth0 OpenAPI spec** to determine:
+- available Auth0 resource types within Stripe Projects
+- supported config fields (mapped to the Auth0 API schema)
 - required/optional parameters
 - limitations of Stripe Projects
 
-If `auth0/client` is not present, stop and use only available resource types.
+If `auth0/client` is not present in the catalog, stop and use only available resource types.
 
 ---
 
@@ -92,28 +93,27 @@ Rules:
 
 ### 4) Create or Update Auth0 Client (Complete Config Only)
 
-Use only fields supported by the catalog.
+Formulate the `--config` JSON payload using the [Auth0 Management API OpenAPI spec](https://auth0.com/docs/api/management/openapi.json). 
+- Creation payloads map directly to the `POST /v2/clients` endpoint.
+- Update payloads map directly to the `PATCH /v2/clients/{id}` endpoint.
 
 Create:
 
-```
+```bash
 DEV_MODE=true stripe projects add auth0/client --name "<name>" --config '<json>' -y
 ```
 
 Update:
 
-```
+```bash
 DEV_MODE=true stripe projects update <name> auth0/client --config '<json>' -y
 ```
 
 Requirements:
+- You can and should use the CLI to set comprehensive configurations, including `callbacks`, `name`, `description`, `app_type`, `allowed_logout_urls`, `web_origins`, and everything else supported by the spec.
 - If `--name` is used, include `"name"` in config
-- Always include full URI configuration when supported:
-  - callbacks
-  - logout URLs
-  - web origins
-- Include app type field if supported
-- Do not submit partial configs for full setup requests
+- Always include full URI configuration when supported.
+- Do not submit partial configs for full setup requests.
 
 ---
 
@@ -121,7 +121,7 @@ Requirements:
 
 Run:
 
-```
+```bash
 DEV_MODE=true stripe projects status
 DEV_MODE=true stripe projects env
 DEV_MODE=true stripe projects env --pull
@@ -157,7 +157,7 @@ Rules:
 
 If Stripe Projects cannot configure something:
 
-```
+```bash
 DEV_MODE=true stripe projects open auth0
 ```
 
@@ -192,7 +192,7 @@ Always include:
 1. What was discovered from catalog/status
 2. Chosen application type + reasoning
 3. Exact CLI commands used or recommended
-4. Final configuration values (especially URLs)
+4. Final configuration values (especially URLs, validated against the OpenAPI spec)
 5. Verification results
 6. Any required manual steps (if applicable)
 
@@ -202,8 +202,8 @@ Always include:
 
 If something fails:
 
-1. Re-check catalog output
-2. Remove unsupported fields only
+1. Re-check catalog output and the Auth0 OpenAPI spec schema
+2. Remove unsupported or incorrectly formatted fields only
 3. Do NOT guess replacements
 4. Validate service availability (`services list`)
 5. Use dashboard fallback if needed
@@ -212,7 +212,7 @@ If something fails:
 
 ## Hard Constraints
 
-- Never fabricate config keys
+- Never fabricate config keys (always refer to the Auth0 OpenAPI spec)
 - Never assume production URLs
 - Never skip verification
 - Never leave URI config incomplete
@@ -222,7 +222,7 @@ If something fails:
 
 ## Commands Reference
 
-```
+```bash
 DEV_MODE=true stripe projects status
 DEV_MODE=true stripe projects services list
 DEV_MODE=true stripe projects catalog auth0 --json
