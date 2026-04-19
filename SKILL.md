@@ -3,124 +3,119 @@ name: sp-auth0
 description: Use for reliable Auth0 provisioning and configuration through Stripe Projects in this repo.
 ---
 
-# Auth0 via Stripe Projects (Strict Mode)
+# Auth0 via Stripe Projects
 
-You are responsible for correctly provisioning, configuring, and validating Auth0 resources using Stripe Projects. Your goal is not just to create resources, but to ensure they are fully functional, correctly configured, and verifiably working for the target application.
+## The #1 Rule (Read This First)
 
----
+**The `--config` flag on `stripe projects add` and `stripe projects update` accepts ANY valid Auth0 Management API field as a JSON passthrough.** This includes `callbacks`, `allowed_logout_urls`, `web_origins`, `app_type`, `grant_types`, and every other field documented in the Auth0 API.
 
-## Core Rules
+You MUST configure Auth0 clients fully via the CLI. Never tell the user to open the Auth0 dashboard to set callbacks, logout URLs, web origins, or any other field that the Auth0 Management API supports. If you catch yourself about to say "go to the dashboard to configure...", stop — put it in `--config` instead.
 
-- Prefix every command with: `DEV_MODE=true`
-- Use `stripe projects` CLI as the **primary control plane**
-- Reference the [Auth0 Management API OpenAPI spec](https://auth0.com/docs/api/management/openapi.json) to inform valid properties for your configuration payloads.
-- Never guess config keys or capabilities; use the OpenAPI spec schema.
-- Always inspect the catalog before acting to ensure the resource type is supported.
-- Always verify after changes
-- Prefer complete configuration over minimal configuration
-- Do not declare success without validation
-- If Stripe Projects cannot perform a required action, fall back to:
-  `stripe projects open auth0` and explicitly describe the remaining manual steps. **However, you must exhaust all CLI config options first.**
+The ONLY acceptable reason to use `stripe projects open auth0` is for operations that have no Auth0 Management API equivalent (e.g., visual exploration, enabling social connections that require OAuth app creation on a third-party site). If you invoke the dashboard fallback, you must state which specific Auth0 API endpoint you attempted and what error you received.
 
 ---
 
-## Required Workflow (Do Not Skip Steps)
+## How `--config` Works
 
-### 1) Discover Current State
+The `--config '<json>'` flag passes a JSON object whose keys map directly to the [Auth0 Management API](https://auth0.com/docs/api/management/v2):
 
-Run:
+- **Creating** a client: fields map to `POST /api/v2/clients`
+- **Updating** a client: fields map to `PATCH /api/v2/clients/{id}`
+
+This means you should reference the Auth0 Management API docs (not the catalog output) to determine valid config fields. The catalog tells you which **resource types** exist (e.g., `auth0/client`). It does NOT define the full set of configurable fields — `--config` does that by proxying to the Auth0 API.
+
+### Fields You Must Always Include for Web Apps
+
+These are standard Auth0 API fields, fully supported via `--config`:
+
+| Field | Key | Example |
+|---|---|---|
+| App type | `app_type` | `"regular_web"`, `"spa"`, `"native"`, `"non_interactive"` |
+| Callback URLs | `callbacks` | `["http://localhost:3000/api/auth/callback"]` |
+| Logout URLs | `allowed_logout_urls` | `["http://localhost:3000"]` |
+| Web Origins | `web_origins` | `["http://localhost:3000"]` |
+| Grant Types | `grant_types` | `["authorization_code", "refresh_token"]` |
+
+---
+
+## Workflow
+
+Prefix every command with `DEV_MODE=true`.
+
+### 1. Discover Current State
 
 ```bash
 DEV_MODE=true stripe projects status
 DEV_MODE=true stripe projects services list
 DEV_MODE=true stripe projects catalog auth0 --json
-DEV_MODE=true stripe projects catalog auth0/client --json
 ```
 
-Use this data alongside the **Auth0 OpenAPI spec** to determine:
-- available Auth0 resource types within Stripe Projects
-- supported config fields (mapped to the Auth0 API schema)
-- required/optional parameters
-- limitations of Stripe Projects
+Use catalog output to confirm `auth0/client` (or other resource types) exist. **Do not use catalog output to decide which `--config` fields are valid** — that is determined by the Auth0 API, not the catalog.
 
-If `auth0/client` is not present in the catalog, stop and use only available resource types.
+### 2. Classify the Application Type
 
----
+Determine the Auth0 app type before creating anything:
 
-### 2) Classify the Application Type
+| Type | When to use | `app_type` value |
+|---|---|---|
+| Regular Web App | Server-rendered (Next.js w/ backend, Express) | `regular_web` |
+| SPA | Browser-only, token-based | `spa` |
+| Native | Mobile/desktop | `native` |
+| M2M | Service-to-service, no user login | `non_interactive` |
 
-Determine the correct Auth0 application type before creating anything:
+How to determine:
+- Check dependencies (`@auth0/nextjs-auth0` = Regular Web, `@auth0/auth0-spa-js` = SPA)
+- Check routing patterns, middleware, session handling
+- Default to **Regular Web App** for Next.js unless clearly SPA
 
-- **Regular Web App** → server-rendered apps (e.g. Next.js with backend/session)
-- **SPA** → browser-only apps using tokens directly
-- **Native** → mobile/desktop apps
-- **M2M** → service-to-service authentication
+### 3. Derive Required URLs
 
-If unclear:
-- inspect repo structure
-- check dependencies (e.g. `@auth0/nextjs-auth0`)
-- check routing/auth patterns
+Determine from framework conventions, existing routes, env files, and dev server config:
 
-Default to **Regular Web App** for Next.js unless clearly SPA.
-
-Never proceed without explicitly choosing an app type.
-
----
-
-### 3) Derive Required URLs (Do Not Guess)
-
-Determine:
-
-- Base URL (e.g. `http://localhost:3000`)
-- Callback URL (e.g. `/auth/callback`)
-- Logout URL
-- Web origins
-
-Infer from:
-- framework conventions
-- existing routes
-- env files
-- README/config
-- dev server config
+- Base URL (e.g., `http://localhost:3000`)
+- Callback URL(s) — framework-specific (e.g., `/api/auth/callback` for Next.js Auth0 SDK)
+- Logout return URL(s)
+- Web origins (for CORS)
 
 Rules:
-- Do NOT invent production domains
-- Always include localhost for dev
-- Do NOT omit required URLs
-- Do NOT use wildcards unless explicitly justified
+- Always include `localhost` URLs for local dev
+- Do not invent production domains
+- Do not use wildcards unless explicitly justified
+- Do not omit any URL category
 
----
+### 4. Create or Update the Auth0 Client
 
-### 4) Create or Update Auth0 Client (Complete Config Only)
+**Always include the full configuration in a single `--config` payload.** Do not create first and "configure later in the dashboard."
 
-Formulate the `--config` JSON payload using the [Auth0 Management API OpenAPI spec](https://auth0.com/docs/api/management/openapi.json). 
-- Creation payloads map directly to the `POST /v2/clients` endpoint.
-- Update payloads map directly to the `PATCH /v2/clients/{id}` endpoint.
-
-Create:
+Create example (Next.js Regular Web App):
 
 ```bash
-DEV_MODE=true stripe projects add auth0/client --name "<name>" --config '<json>' -y
+DEV_MODE=true stripe projects add auth0/client --name "my-app" --config '{
+  "name": "my-app",
+  "app_type": "regular_web",
+  "callbacks": ["http://localhost:3000/api/auth/callback"],
+  "allowed_logout_urls": ["http://localhost:3000"],
+  "web_origins": ["http://localhost:3000"],
+  "grant_types": ["authorization_code", "refresh_token"]
+}' -y
 ```
 
-Update:
+Update example:
 
 ```bash
-DEV_MODE=true stripe projects update <name> auth0/client --config '<json>' -y
+DEV_MODE=true stripe projects update my-app auth0/client --config '{
+  "callbacks": ["http://localhost:3000/api/auth/callback", "http://localhost:3000/auth/callback"],
+  "allowed_logout_urls": ["http://localhost:3000"],
+  "web_origins": ["http://localhost:3000"]
+}' -y
 ```
 
-Requirements:
-- **CRITICAL:** You MUST configure URIs directly via the CLI. DO NOT instruct the user to configure `callbacks`, `allowed_logout_urls`, or `web_origins` in the dashboard. These are supported API fields and must be included in your `--config` payload.
-- You can and should use the CLI to set comprehensive configurations, including `callbacks`, `name`, `description`, `app_type`, `allowed_logout_urls`, `web_origins`, and everything else supported by the spec.
-- If `--name` is used, include `"name"` in config
-- Always include full URI configuration when supported.
-- Do not submit partial configs for full setup requests.
+If `--config` returns an error for a specific field:
+1. Check the Auth0 Management API docs for correct field name/format
+2. Fix and retry
+3. Only after a confirmed, unresolvable CLI failure for a specific field may you use the dashboard — and you must state the exact error
 
----
-
-### 5) Sync + Verify (Mandatory)
-
-Run:
+### 5. Verify (Mandatory)
 
 ```bash
 DEV_MODE=true stripe projects status
@@ -129,96 +124,33 @@ DEV_MODE=true stripe projects env --pull
 ```
 
 Confirm:
-- resource exists
-- config applied
-- env variables available locally
-- project state is consistent
+- Resource exists and shows correct config
+- Env variables are populated locally
+- URI fields (callbacks, logout URLs, web origins) are set — do not skip this check
 
-If verification is incomplete, explicitly state what cannot be confirmed.
+### 6. Align Code Integration
 
----
+Match to the framework's official Auth0 SDK:
 
-### 6) Align Code Integration
+- Next.js: `@auth0/nextjs-auth0`
+- Express: `express-openid-connect`
+- SPA: `@auth0/auth0-spa-js`
 
-Match implementation to the framework:
-
-- Next.js → `@auth0/nextjs-auth0`
-- Express → Auth0 Express patterns
-- SPA → Auth0 SPA SDK
-
-Rules:
-- Do not mix auth patterns
-- Do not introduce incompatible flows
-- Reuse existing SDK if present
-- Follow official integration patterns for the detected framework
+Reuse existing SDK if present. Do not mix auth patterns.
 
 ---
 
-### 7) Dashboard Fallback (When Needed)
+## Anti-Patterns (Never Do These)
 
-If Stripe Projects cannot configure something:
+These are the exact behaviors this skill exists to prevent:
 
-```bash
-DEV_MODE=true stripe projects open auth0
-```
-
-Then clearly specify:
-- exact field names
-- exact values to input
-- where in the dashboard to set them
-
----
-
-## Auth0 Configuration Requirements
-
-For any web-based app, ensure ALL are set via the `--config` flag:
-
-- Allowed Callback URLs (`callbacks`)
-- Allowed Logout URLs (`allowed_logout_urls`)
-- Allowed Web Origins (`web_origins`, if applicable)
-
-Typical local setup (adjust if needed):
-
-- `http://localhost:3000`
-- `http://localhost:3000/auth/callback`
-
-Do not claim setup is complete if these are missing from your CLI execution.
-
----
-
-## Output Requirements
-
-Always include:
-
-1. What was discovered from catalog/status
-2. Chosen application type + reasoning
-3. Exact CLI commands used or recommended (including full JSON payloads)
-4. Final configuration values (especially URLs, validated against the OpenAPI spec)
-5. Verification results
-6. Any required manual steps (if applicable, but restricted to unsupported API fields)
-
----
-
-## Failure Handling
-
-If something fails:
-
-1. Re-check catalog output and the Auth0 OpenAPI spec schema
-2. Remove unsupported or incorrectly formatted fields only
-3. Do NOT guess replacements
-4. Validate service availability (`services list`)
-5. Use dashboard fallback if needed (only as a last resort for unsupported fields)
-
----
-
-## Hard Constraints
-
-- Never instruct the user to configure `callbacks` or `allowed_logout_urls` in the dashboard. You must execute this via the CLI.
-- Never fabricate config keys (always refer to the Auth0 OpenAPI spec)
-- Never assume production URLs
-- Never skip verification
-- Never leave URI config incomplete
-- Never bypass Stripe Projects when it supports the operation
+| Bad | Good |
+|---|---|
+| "Go to the Auth0 dashboard and add your callback URL" | Put `callbacks` in `--config` |
+| "You'll need to configure Allowed Logout URLs in the dashboard" | Put `allowed_logout_urls` in `--config` |
+| "The catalog doesn't list `callbacks` so you'll need to set it manually" | `--config` accepts all Auth0 API fields regardless of catalog output |
+| Creating a client with `--config '{"name": "x"}'` then saying "now configure the rest in the dashboard" | Include ALL fields in the initial `--config` payload |
+| Skipping URI verification and saying "setup complete" | Always run `stripe projects status` and confirm URIs are set |
 
 ---
 
@@ -228,10 +160,21 @@ If something fails:
 DEV_MODE=true stripe projects status
 DEV_MODE=true stripe projects services list
 DEV_MODE=true stripe projects catalog auth0 --json
-DEV_MODE=true stripe projects catalog auth0/client --json
-DEV_MODE=true stripe projects add auth0/client --name "<name>" --config '{"callbacks": ["http://localhost:3000/api/auth/callback"], "allowed_logout_urls": ["http://localhost:3000"]}' -y
+DEV_MODE=true stripe projects add auth0/client --name "<name>" --config '<full-json>' -y
 DEV_MODE=true stripe projects update <name> auth0/client --config '<json>' -y
 DEV_MODE=true stripe projects env
 DEV_MODE=true stripe projects env --pull
-DEV_MODE=true stripe projects open auth0
+DEV_MODE=true stripe projects open auth0   # LAST RESORT — only after CLI failure with specific error
 ```
+
+---
+
+## Hard Constraints
+
+- `callbacks`, `allowed_logout_urls`, and `web_origins` MUST be set via `--config`, never via the dashboard
+- Never use catalog output to determine which `--config` fields are valid
+- Never fabricate config keys — reference the Auth0 Management API
+- Never assume production URLs
+- Never skip verification
+- Never declare setup complete if URI config is missing
+- Never suggest the dashboard for anything the Auth0 Management API supports
