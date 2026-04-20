@@ -13,8 +13,6 @@ You MUST configure Auth0 clients fully via the CLI. Never tell the user to open 
 
 The ONLY acceptable reason to use `stripe projects open auth0` is for operations that have no Auth0 Management API equivalent (e.g., visual exploration, enabling social connections that require OAuth app creation on a third-party site). If you invoke the dashboard fallback, you must state which specific Auth0 API endpoint you attempted and what error you received.
 
----
-
 ## How `--config` Works
 
 The `--config '<json>'` flag passes a JSON object whose keys map directly to the [Auth0 Management API](https://auth0.com/docs/api/management/v2):
@@ -73,7 +71,7 @@ How to determine:
 Determine from framework conventions, existing routes, env files, and dev server config:
 
 - Base URL (e.g., `http://localhost:3000`)
-- Callback URL(s) — framework-specific (e.g., `/api/auth/callback` for Next.js Auth0 SDK)
+- Callback URL(s) — framework-specific (e.g., `/auth/callback` for Next.js Auth0 SDK)
 - Logout return URL(s)
 - Web origins (for CORS)
 
@@ -93,7 +91,7 @@ Create example (Next.js Regular Web App):
 DEV_MODE=true stripe projects add auth0/client --name "my-app" --config '{
   "name": "my-app",
   "app_type": "regular_web",
-  "callbacks": ["http://localhost:3000/api/auth/callback"],
+  "callbacks": ["http://localhost:3000/auth/callback", "http://localhost:3000/api/auth/callback"],
   "allowed_logout_urls": ["http://localhost:3000"],
   "web_origins": ["http://localhost:3000"],
   "grant_types": ["authorization_code", "refresh_token"]
