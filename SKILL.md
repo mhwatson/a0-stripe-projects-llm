@@ -238,7 +238,6 @@ If something fails:
 DEV_MODE=true stripe projects status
 DEV_MODE=true stripe projects services list
 DEV_MODE=true stripe projects catalog auth0 --json
-DEV_MODE=true stripe projects catalog auth0/client --json
 DEV_MODE=true stripe projects add auth0/client --name "<name>" --config '{"callbacks": ["http://localhost:3000/api/auth/callback"], "allowed_logout_urls": ["http://localhost:3000"]}' -y
 DEV_MODE=true stripe projects update <name> auth0/client --config '<json>' -y
 DEV_MODE=true stripe projects env
