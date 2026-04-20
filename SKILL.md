@@ -1,6 +1,6 @@
 ---
 name: sp-auth0
-description: Use for reliable Auth0 provisioning and configuration through Stripe Projects in this repo.
+description: Always use this skill before running any `stripe projects` commands involving Auth0, or before writing any Auth0 integration code in this project.
 ---
 
 # Auth0 via Stripe Projects (Strict Mode)
