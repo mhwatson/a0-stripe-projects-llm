@@ -136,6 +136,29 @@ Match to the framework's official Auth0 SDK:
 
 Reuse existing SDK if present. Do not mix auth patterns.
 
+### 7. Read Before You Write (Mandatory Post-Install Step)
+
+**After installing any Auth0 SDK (or discovering one already installed), you MUST complete these steps before writing any integration code:**
+
+1. **Check the installed version:**
+   ```bash
+   npm ls @auth0/nextjs-auth0   # or whichever SDK
+   ```
+
+2. **Read the SDK's local README for the installed version:**
+   ```bash
+   cat node_modules/@auth0/nextjs-auth0/README.md | head -200
+   ```
+   If the README references a migration guide or breaking changes doc, read that too.
+
+3. **Identify the SDK's initialization pattern** from the README — not from memory or training data. Auth0 SDKs have had breaking changes across major versions (e.g., v4 of `@auth0/nextjs-auth0` changed from `initAuth0()` to `new Auth0Client()`). Your training data may reflect an outdated version.
+
+**Only after completing all three steps may you write integration code.**
+
+If the installed major version differs from what you expected, call it out to the user before proceeding (e.g., "The installed SDK is v4, which uses a different initialization pattern than v3").
+
+This step exists because SDK APIs change across major versions, and build errors from stale patterns are expensive to debug. The local `node_modules` README is the single source of truth for the installed version's API.
+
 ---
 
 ## Anti-Patterns (Never Do These)
@@ -149,6 +172,8 @@ These are the exact behaviors this skill exists to prevent:
 | "The catalog doesn't list `callbacks` so you'll need to set it manually" | `--config` accepts all Auth0 API fields regardless of catalog output |
 | Creating a client with `--config '{"name": "x"}'` then saying "now configure the rest in the dashboard" | Include ALL fields in the initial `--config` payload |
 | Skipping URI verification and saying "setup complete" | Always run `stripe projects status` and confirm URIs are set |
+| Installing an SDK and immediately writing integration code from memory | Check installed version, read local README, then write code |
+| Using `initAuth0()` or any other pattern without verifying it matches the installed version | Read `node_modules/<sdk>/README.md` to confirm the correct initialization pattern |
 
 ---
 
@@ -176,3 +201,5 @@ DEV_MODE=true stripe projects open auth0   # LAST RESORT — only after CLI fail
 - Never skip verification
 - Never declare setup complete if URI config is missing
 - Never suggest the dashboard for anything the Auth0 Management API supports
+- Never write integration code before checking the installed SDK version and reading its local README
+- Never assume SDK initialization patterns from training data — always verify against `node_modules/<sdk>/README.md`
