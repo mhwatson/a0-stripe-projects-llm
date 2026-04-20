@@ -58,10 +58,10 @@ Determine the correct Auth0 application type before creating anything:
 
 If unclear:
 - inspect repo structure
-- check dependencies (e.g. `@auth0/nextjs-auth0`)
+- check installed dependencies for Auth0 SDKs and infer the app type from the SDK's purpose
 - check routing/auth patterns
 
-Default to **Regular Web App** for Next.js unless clearly SPA.
+Default to **Regular Web App** for server-rendered frameworks unless clearly SPA or M2M.
 
 Never proceed without explicitly choosing an app type.
 
@@ -140,21 +140,29 @@ If verification is incomplete, explicitly state what cannot be confirmed.
 
 ### 6) Align Code Integration
 
-Match implementation to the framework:
-
-- Next.js → `@auth0/nextjs-auth0`
-- Express → Auth0 Express patterns
-- SPA → Auth0 SPA SDK
-
-Rules:
-- Do not mix auth patterns
-- Do not introduce incompatible flows
-- Reuse existing SDK if present
-- Follow official integration patterns for the detected framework
+Use the official Auth0 SDK for the project's language and framework. Reuse an existing Auth0 SDK if one is already installed. Do not mix auth patterns.
 
 ---
 
-### 7) Dashboard Fallback (When Needed)
+### 7) Read Before You Write (Mandatory Post-Install Step)
+
+**After installing any Auth0 SDK (or discovering one already installed), you MUST complete these steps before writing any integration code:**
+
+1. **Check the installed version** using the project's package manager.
+
+2. **Read the SDK's local README or docs for the installed version.** The installed package directory is the source of truth — not web docs, not training data. If the README references a migration guide or breaking changes doc, read that too.
+
+3. **Identify the SDK's initialization pattern** from the local docs — not from memory or training data. Auth0 SDKs have had breaking changes across major versions (e.g., v4 of `@auth0/nextjs-auth0` changed from `initAuth0()` to `new Auth0Client()`). Your training data may reflect an outdated version.
+
+**Only after completing all three steps may you write integration code.**
+
+If the installed major version differs from what you expected, call it out to the user before proceeding (e.g., "The installed SDK is v4, which uses a different initialization pattern than v3").
+
+This step exists because SDK APIs change across major versions, and build errors from stale patterns are expensive to debug. The locally installed package docs are the single source of truth for the installed version's API.
+
+---
+
+### 8) Dashboard Fallback (When Needed)
 
 If Stripe Projects cannot configure something:
 
@@ -219,6 +227,8 @@ If something fails:
 - Never skip verification
 - Never leave URI config incomplete
 - Never bypass Stripe Projects when it supports the operation
+- Never write integration code before checking the installed SDK version and reading its local README
+- Never assume SDK initialization patterns from training data — always verify against the locally installed SDK's README/docs
 
 ---
 
