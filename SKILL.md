@@ -34,7 +34,6 @@ Run:
 DEV_MODE=true stripe projects status
 DEV_MODE=true stripe projects services list
 DEV_MODE=true stripe projects catalog auth0 --json
-DEV_MODE=true stripe projects catalog auth0/client --json
 ```
 
 Use this data alongside the **Auth0 OpenAPI spec** to determine:
@@ -43,7 +42,7 @@ Use this data alongside the **Auth0 OpenAPI spec** to determine:
 - required/optional parameters
 - limitations of Stripe Projects
 
-If `auth0/client` is not present in the catalog, stop and use only available resource types.
+If `client` is not in the catalog, stop and use only available deployable resource types.
 
 ---
 
